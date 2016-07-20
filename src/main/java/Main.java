@@ -1,19 +1,16 @@
-import com.gargoylesoftware.htmlunit.BrowserVersion;
-import com.gargoylesoftware.htmlunit.NicelyResynchronizingAjaxController;
-import com.gargoylesoftware.htmlunit.SilentCssErrorHandler;
-import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.*;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.html.HtmlTableDataCell;
 import com.gargoylesoftware.htmlunit.html.HtmlTableRow;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.GregorianCalendar;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
+        final String JS_CALL_HOME = "showTS('A',1)";
         final WebClient webClient = new WebClient(BrowserVersion.CHROME);
 
         webClient.setAjaxController(new NicelyResynchronizingAjaxController());
@@ -31,12 +28,14 @@ public class Main {
         webClient.getOptions().setPrintContentOnFailingStatusCode(true);
         webClient.waitForBackgroundJavaScript(5000);
 
-        Calendar c = new GregorianCalendar(); //System.out.println(c.get(Calendar.YEAR));
+        //Date date;
+        Calendar c = Calendar.getInstance();; //System.out.println(c.get(Calendar.YEAR));
+        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yy");
 
         List<Category> category1 = new ArrayList<Category>();
         List<Category> category2 = new ArrayList<Category>();
 
-        Integer sumZero1stTime = 0;
+
 
 
         try {
@@ -52,35 +51,81 @@ public class Main {
                 //System.out.println("http://analyse.7msport.com/"+id+"index.shtml");
                 //теперь нужно перейти на эту страницу подобно тому как мы вошли на основную и дальше исктаь как достать инфу
                 //пользуйся хромом что бы просматривать структуру html и найти за чт зацеппится
+                Integer sumZero1stTime1 = 0;
+
                 HtmlPage page1 = webClient.getPage("http://analyse.7msport.com/"+id+"/index.shtml");
                 //http://analyse.7msport.com/1595010/index.shtml
-                List<HtmlTableRow> scoresRow = ((List<HtmlTableRow>) page1.getByXPath("//Table[@class='qdwj1']//tr"));
+                List<HtmlTableRow> scoresRow = ((List<HtmlTableRow>) page1.getByXPath("//Table[@class='qdwj1']//tr"));  // 1-й шаг
                 for (HtmlTableRow sr: scoresRow) {
-                    if (!sr.getAttribute("class").equals("sjt1") && !sr.getAttribute("class").equals("sjt2"))
+                    if (!sr.getAttribute("class").equals("sjt1") && !sr.getAttribute("class").equals("sjt2") && !sr.getAttribute("class").equals("sjt3") && !sr.getAttribute("class").equals("sjt4"))
                         continue;
-                    String[] date = ((HtmlTableDataCell) sr.getByXPath("td[@class='td_time']").get(0)).asText().split("/");
+                    c.setTime(formatter.parse(sr.getCell(1).asText()));
+                    //System.out.println(c.get(Calendar.YEAR));
 
-                    if (Integer.parseInt(date[date.length-1]) >= (c.get(Calendar.YEAR)-2000 -3)){ //исключили матчи старше 3 лет
-                        if (!((HtmlTableDataCell) sr.getByXPath("td[@class='td_score']").get(0)).asText().equals("0-0")){ //исключили общ.результат 0-0
+                    if (c.get(Calendar.YEAR) >= (c.get(Calendar.YEAR)-3)){ //исключили матчи старше 3 лет
+                        if (!sr.getCell(3).asText().equals("0-0")){ //исключили общ.результат 0-0
                             if (sr.getCell(9).asText().equals("0-0")) {      //выбрали td без класса
-                                sumZero1stTime++;
+                                sumZero1stTime1++;
                             }
-                            if (sumZero1stTime > 1){
-                                System.out.println(sr);
+                            if (sumZero1stTime1 > 1){
+                                System.out.println("игра " + sr + " попадает в I категорию");
+                            }
+                            else if (sumZero1stTime1 <= 1){
+                                System.out.println("игра " + sr + " попадает вo II категорию");
                             }
 
                         }
                     }
                 }
-                List<HtmlTableRow> scoresRow2 = ((List<HtmlTableRow>) page1.getByXPath("//Table[@class='zrqt1']//tr"));
-                for (HtmlTableRow sr: scoresRow2) {
-                    if (!sr.getAttribute("class").equals("sjt3") && !sr.getAttribute("class").equals("sjt4"))
+                Integer sumZeroTotal1 = 0;
+                Integer sumZeroHome = 0;
+                List<HtmlTableRow> scoresRowTotal1 = ((List<HtmlTableRow>) page1.getByXPath("//Table[@id='tbTeamHistory_A_all']//tr")); // 2-й шаг
+                ScriptResult result = page.executeJavaScript(JS_CALL_HOME);
+                List<HtmlTableRow> scoresRowHome = ((List<HtmlTableRow>) page1.getByXPath("//Table[@id='tbTeamHistory_A_home']//tr")); //????????????? only 2 components
+                for (HtmlTableRow srt: scoresRowTotal1){
+                    if (!srt.getAttribute("class").equals("sjt1") && !srt.getAttribute("class").equals("sjt2") && !srt.getAttribute("class").equals("sjt3") && !srt.getAttribute("class").equals("sjt4"))
                         continue;
-                    String[] date = ((HtmlTableDataCell) sr.getByXPath("td[@class='d1']").get(0)).asText().split("/");
-                    if (Integer.parseInt(date[date.length-1]) >= (c.get(Calendar.YEAR)-2000 -3)){
-                        
+                    c.setTime(formatter.parse(srt.getCell(1).asText()));
+                    if (c.get(Calendar.YEAR) >= (c.get(Calendar.YEAR)-3)){
+                        if (srt.getCell(3).asText().equals("0-0")) {
+                            sumZeroTotal1++;
+                        }
                     }
                 }
+                for (HtmlTableRow srh: scoresRowHome) {
+                    if (!srh.getAttribute("class").equals("sjt1") && !srh.getAttribute("class").equals("sjt2"))
+                        continue;
+                    c.setTime(formatter.parse(srh.getCell(1).asText()));
+                    if (c.get(Calendar.YEAR) >= (c.get(Calendar.YEAR)-3)){
+
+                    }
+
+                }
+                Integer sumZeroTotal2 = 0;
+                List<HtmlTableRow> scoresRowTotal2 = ((List<HtmlTableRow>) page1.getByXPath("//Table[@id='tbTeamHistory_B_all']//tr")); // 2-й шаг
+                List<HtmlTableRow> scoresRowAway = ((List<HtmlTableRow>) page1.getByXPath("//Table[@id='tbTeamHistory_B_away']//tr")); //????????????? only 2 components
+                for (HtmlTableRow srt: scoresRowTotal2){
+                    if (!srt.getAttribute("class").equals("sjt1") && !srt.getAttribute("class").equals("sjt2") && !srt.getAttribute("class").equals("sjt3") && !srt.getAttribute("class").equals("sjt4"))
+                        continue;
+                    c.setTime(formatter.parse(srt.getCell(1).asText()));
+                    if (c.get(Calendar.YEAR) >= (c.get(Calendar.YEAR)-3)){
+                        if (srt.getCell(3).asText().equals("0-0")) {
+                            sumZeroTotal2++;
+                        }
+                    }
+                }
+                for (HtmlTableRow srh: scoresRowHome) {
+                    if (!srh.getAttribute("class").equals("sjt1") && !srh.getAttribute("class").equals("sjt2") && !srh.getAttribute("class").equals("sjt3") && !srh.getAttribute("class").equals("sjt4"))
+                        continue;
+                    c.setTime(formatter.parse(srh.getCell(1).asText()));
+                    if (c.get(Calendar.YEAR) >= (c.get(Calendar.YEAR)-3)){
+
+                    }
+
+                }
+
+
+
 
             }
         } catch (Exception e) {
